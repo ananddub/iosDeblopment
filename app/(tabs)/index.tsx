@@ -36,7 +36,7 @@ export default function LoginScreen() {
     }
   };
   useEffect(() => {
-    setTimeout(() => navigate.navigate("stdPhoto"), 500);
+    // setTimeout(() => navigate.navigate("stdPhoto"), 500);
   }, []);
   useEffect(() => {
     setIsValid(false);

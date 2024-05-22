@@ -21,12 +21,12 @@ import axios from "axios";
 import { Camera } from "expo-camera";
 import CardCamera from "@/components/Card";
 import { Linking } from "react-native";
-
+import { AntDesign } from "@expo/vector-icons";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import * as ImagePicker from "expo-image-picker";
 import * as Print from "expo-print";
 import DropDown from "@/components/DropDown";
-import { shareAsync } from "expo-sharing";
+import * as Sharing from "expo-sharing";
 import * as IntentLauncher from "expo-intent-launcher";
 import * as Permissions from "expo-permissions";
 
@@ -61,7 +61,7 @@ export default function stdPhoto() {
   const secarr = ["ALL", "A", "B", "C", "D"];
   const [classindex, setClassIndex] = useState<number>(-1);
   const [secindex, setSecIndex] = useState<number>(0);
-  const [text, setText] = useState<string>("");
+  const [text, setText] = useState<string>("5");
   useEffect(() => {
     // console.log("color", stdPhoto);
     let i = 0;
@@ -74,9 +74,7 @@ export default function stdPhoto() {
         .then(async (response: any) => {
           const data = `[${response.data}]`;
           const data1 = JSON.parse(data);
-          setSpin(false);
           console.log(data1[0].name);
-          setList(data1);
           setMList(data1);
           console.log(i);
         })
@@ -123,19 +121,32 @@ export default function stdPhoto() {
   };
   useEffect(() => {
     if (classindex > -1) {
-      setSpin(true);
+      setSpin(false);
+      setSpin(false);
       const arr: any[] = mlist.filter((item: any) => {
         console.table({
           section: secarr[secindex],
           condtion: item.section === secarr[secindex],
         });
+        if (text !== "") {
+          console.log(
+            "comed",
+            secarr[secindex],
+            text,
+            item.roll,
+            text === item.roll
+          );
+          if (secarr[secindex] === "ALL" && text === `${item.roll}`)
+            return true;
+          return secarr[secindex] === item.section && text === `${item.roll}`;
+        }
         return item.section === secarr[secindex] || secarr[secindex] === "ALL";
       });
 
       setList(arr);
       setSpin(false);
     }
-  }, [secindex, classindex, mlist]);
+  }, [secindex, classindex, mlist, text]);
   useEffect(() => {
     const total = list.reduce((a: number, item: any) => {
       if (item.imagepath.length > 0) return a + 1;
@@ -143,43 +154,32 @@ export default function stdPhoto() {
     }, 0);
     setPtotal(total);
   }, [list]);
+  const genrateHTML = () => {
+    let str = "";
+    list.forEach((x: any) => {
+      str += idcreate(x);
+    });
+    return pdf(str, classarr[classindex], secarr[secindex]);
+  };
   const printToFiile = async () => {
     const { uri } = await Print.printToFileAsync({
-      html: "<h1>Hello World</h1>",
+      html: genrateHTML(),
     });
     console.log("File has been saved to:", uri);
 
     if (Platform.OS === "android") {
       Permissions.MEDIA_LIBRARY;
-      // On Android, we need to copy the file to a location accessible to other apps
-      const fileUri = FileSystem.cacheDirectory + "myfile.pdf";
+      const fileUri =
+        FileSystem.cacheDirectory +
+        `${classarr[classindex]}${secarr[secindex]}.pdf`;
       await FileSystem.copyAsync({
         from: uri,
         to: fileUri,
       });
-      try {
-        console.log("done");
-        await IntentLauncher.startActivityAsync("android.intent.action.VIEW", {
-          data: `file://${fileUri}`,
-          flags: 1,
-
-          type: "application/pdf",
-        });
-      } catch (e) {
-        console.log(e);
-      }
-    } else {
-      // On iOS, use the built-in document viewer
-      try {
-        const result: any = await FileSystem.getContentUriAsync(uri);
-        await IntentLauncher.startActivityAsync("android.intent.action.VIEW", {
-          data: result.uri,
-          flags: 1,
-          type: "application/pdf",
-        });
-      } catch (e) {
-        console.log(e);
-      }
+      await Sharing.shareAsync(fileUri, {
+        mimeType: "application/pdf",
+        dialogTitle: "Share this PDF",
+      });
     }
     // await shareAsync(uri, { UTI: ".pdf", mimeType: "application/pdf" });
   };
@@ -212,29 +212,19 @@ export default function stdPhoto() {
           Student Photo
         </Text>
         <TouchableOpacity onPress={printToFiile}>
-          <FontAwesome5
-            className="flex-1"
-            name="file-pdf"
+          <AntDesign
+            name="sharealt"
             size={24}
             color={isDarkMode ? "white" : "black"}
           />
         </TouchableOpacity>
       </View>
-      <View className="flex-row">
-        <Text className="flex-1 text-center">Total {list.length}</Text>
-        <Text className="flex-1 text-center text-rose-500">
-          PhotoLeft {list.length - ptotal}
-        </Text>
-        <Text className="flex-1 text-center text-green-500">
-          PhotoDone {ptotal}
-        </Text>
-      </View>
+
       <View
         style={{
           width: "100%",
           maxWidth: 500,
           marginTop: 10,
-          paddingBottom: 10,
           paddingHorizontal: 10,
           columnGap: 10,
           flexDirection: "row",
@@ -262,7 +252,6 @@ export default function stdPhoto() {
           placeholder="Enter Roll"
           placeholderTextColor={isDarkMode ? "gray" : "gray"}
           cursorColor={isDarkMode ? "white" : "gray"}
-          secureTextEntry
           onChangeText={(e) => setText(e.trim())}
           keyboardType="numeric"
           value={text}
@@ -272,6 +261,35 @@ export default function stdPhoto() {
               : "bg-white flex-1 border border-slate-200 ring-white px-2 text-black w-full  rounded-lg"
           }
         />
+      </View>
+      <View className="flex-row gap-2 pb-2 max-w-[500px] mt-2 px-2">
+        <Text
+          className={
+            isDarkMode
+              ? "flex-1 text-center  bg-[#10243E] text-[#369EFF] rounded-lg p-1"
+              : "flex-1 text-center bg-blue-100 font-bold text-blue-500 rounded-lg p-1"
+          }
+        >
+          Total {list.length}
+        </Text>
+        <Text
+          className={
+            isDarkMode
+              ? "flex-1 text-center  bg-[#291415] text-[#F2555A] rounded-lg p-1"
+              : "flex-1 text-center bg-rose-100 font-bold text-rose-500 rounded-lg p-1"
+          }
+        >
+          PhotoLeft {list.length - ptotal}
+        </Text>
+        <Text
+          className={
+            isDarkMode
+              ? "flex-1 text-center bg-[#0F291E] text-[#3AAB75] rounded-lg p-1"
+              : "flex-1 text-center bg-emerald-100 font-bold text-emerald-500 rounded-lg p-1"
+          }
+        >
+          PhotoDone {ptotal}
+        </Text>
       </View>
       {spin && (
         <ActivityIndicator
@@ -391,4 +409,89 @@ function Card(
   );
 }
 
-function ImagePickerers() {}
+const idcreate = (item: any) => {
+  return `     <div id="card">
+                        <img src=${
+                          item.imagepath !== ""
+                            ? "data:image/jpeg;base64," + item.imagepath
+                            : "../assets/user.png"
+                        } 
+                            width="120px" 
+                            height="120px"   
+                        class="bg-gray-300 rounded-full"
+                        alt="" srcset="">
+                        <div id="details"> 
+                            <div class="dm">
+                                <p class="dom">Name</p>
+                                <p class="nom">${item.name}</p>
+                            </div>
+                            <div class="dm">
+                                <p class="dom">class </p>
+                                <p class="nom">${item.class},${item.section},${
+    item.roll
+  }</p>
+                            </div>
+                            <div class="dm">
+                                <p class="dom">F.Name</p>
+                                <p class="nom">${item.fname}</p>
+                            </div>
+                            <div class="dm">
+                                <p class="dom">Address</p>
+                                <p class="nom">${item.ptown}</p>
+                            </div>
+                            <div class="dm">
+                                <p class="dom">Mob</p>
+                                <p class="nom">${item.fmob}</p>
+                            </div>
+                        </div>
+                        </div>`;
+};
+
+const pdf = (str: string, clas: string, section: string) => {
+  return `<html>
+  <style>
+      #card{
+          display: flex;
+          flex: 1;
+          flex-direction: row;
+          outline-width: 2px;
+          outline-color: gray;
+          padding: 8px;
+          gap: 10px;
+          height: 300px;
+          width: 500px;
+          outline-style: solid;
+          border-radius: 20px;
+      }
+      .dm{
+          display: flex;
+          flex-direction: row;
+          gap: 10px;
+          height: 30px;
+          color:#2B2B2B ;
+      }
+      #details{
+          display: flex;
+          flex-direction: column;
+          margin
+      }
+      #mcontainer{
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          align-items: center;
+          color:#2B2B2B ;
+      }
+     
+      img{
+          border-radius: 100%;
+      }
+  </style>
+    <body>
+        <div id="mcontainer">
+            <h1 style="color: #2B2B2B;" >Class ${clas}  Sec ${section}</h1>
+            ${str}
+    </div>
+    </body>
+</html>`;
+};

@@ -42,7 +42,15 @@
           "recordAudioAndroid": true
         }
       ],
-      "expo-build-properties"
+      "expo-build-properties",
+      ["expo-build-properties", {
+        "android": {
+          "usesCleartextTraffic": true
+        },
+        "ios": {
+          "supportsTablet": true
+        }
+      }]
     ],
     "experiments": {
       "typedRoutes": true
